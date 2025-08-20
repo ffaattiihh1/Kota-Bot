@@ -6,6 +6,12 @@ from telegram.ext import (
 from telegram.constants import ParseMode
 import json
 import asyncio
+from flask import Flask, request
+import threading
+import os
+
+# Flask app oluştur (Railway için)
+web_app = Flask(__name__)
 
 # Bot ayarları
 BOT_TOKEN = "8085361560:AAEsZKphKDtQyfxMGUcUUd2XXXSh-VBHojk"
@@ -24,6 +30,9 @@ kotalar = {}
 user_secimleri = {}
 user_gruplari = {}
 user_last_click = {}
+
+# Global bot app
+bot_app = None
 
 def kotalari_yukle():
     """Kotaları JSON dosyasından yükler"""
@@ -323,8 +332,8 @@ async def send_kotas_to_group():
         
         # Gruba mesaj gönder (context.bot kullan)
         # Bu fonksiyon context olmadan çağrıldığı için global app kullan
-        global app
-        await app.bot.send_message(chat_id=GROUP_CHAT_ID, text=mesaj, parse_mode='Markdown')
+        global bot_app
+        await bot_app.bot.send_message(chat_id=GROUP_CHAT_ID, text=mesaj, parse_mode='Markdown')
         print(f"✅ Güncel kotalar gruba gönderildi: {GROUP_CHAT_ID}")
         
     except Exception as e:
@@ -733,25 +742,26 @@ async def set_bot_menu(application):
 async def main():
     """Ana fonksiyon"""
     # Bot uygulamasını oluştur
-    app = Application.builder().token(BOT_TOKEN).build()
+    global bot_app
+    bot_app = Application.builder().token(BOT_TOKEN).build()
     
     # Bot menü butonlarını ayarla
-    app.post_init = set_bot_menu
+    bot_app.post_init = set_bot_menu
     
     # Handler'ları ekle
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(button_callback))
-    app.add_handler(CommandHandler("help", help))
-    app.add_handler(CommandHandler("chatid", get_chat_id))
-    app.add_handler(CommandHandler("showkota", show_kota))
-    app.add_handler(CommandHandler("status", show_status))
-    app.add_handler(CommandHandler("yeni_anket", yeni_anket))
+    bot_app.add_handler(CommandHandler("start", start))
+    bot_app.add_handler(CallbackQueryHandler(button_callback))
+    bot_app.add_handler(CommandHandler("help", help))
+    bot_app.add_handler(CommandHandler("chatid", get_chat_id))
+    bot_app.add_handler(CommandHandler("showkota", show_kota))
+    bot_app.add_handler(CommandHandler("status", show_status))
+    bot_app.add_handler(CommandHandler("yeni_anket", yeni_anket))
     
     # Admin komutları
-    app.add_handler(CommandHandler("addkota", add_kota))
-    app.add_handler(CommandHandler("addkategori", add_kategori))
-    app.add_handler(CommandHandler("delkota", del_kota))
-    app.add_handler(CommandHandler("delkategori", del_kategori))
+    bot_app.add_handler(CommandHandler("addkota", add_kota))
+    bot_app.add_handler(CommandHandler("addkategori", add_kategori))
+    bot_app.add_handler(CommandHandler("delkota", del_kota))
+    bot_app.add_handler(CommandHandler("delkategori", del_kategori))
     
     # ConversationHandler ile güncelleme
     conv_handler = ConversationHandler(
@@ -759,14 +769,14 @@ async def main():
         states={UPDATE_KOTA: [MessageHandler(filters.TEXT & ~filters.COMMAND, update_kota_process)]},
         fallbacks=[]
     )
-    app.add_handler(conv_handler)
+    bot_app.add_handler(conv_handler)
     
     print("Bot çalışıyor...")
     
     # Render için: Manuel polling yap
-    await app.initialize()
-    await app.start()
-    await app.updater.start_polling(drop_pending_updates=True)
+    await bot_app.initialize()
+    await bot_app.start()
+    await bot_app.updater.start_polling(drop_pending_updates=True)
     
     # Bot'u çalışır durumda tut
     try:
@@ -774,15 +784,29 @@ async def main():
             await asyncio.sleep(1)
     except KeyboardInterrupt:
         print("Bot durduruluyor...")
-        await app.updater.stop()
-        await app.stop()
-        await app.shutdown()
+        await bot_app.updater.stop()
+        await bot_app.stop()
+        await bot_app.shutdown()
+
+# Flask health check endpoint'i
+@web_app.route('/')
+def health_check():
+    return "OK"
+
+# Flask health check thread'i
+def run_flask_server():
+    web_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
 
 # Bot başlatıldığında menü butonlarını ayarla
 if __name__ == "__main__":
     print("🚀 Bot başlatılıyor...")
     
     try:
+        # Flask server'ı ayrı thread'de başlat
+        flask_thread = threading.Thread(target=run_flask_server, daemon=True)
+        flask_thread.start()
+        print("✅ Flask server başlatıldı")
+        
         # Bot'u çalıştır
         print("✅ Bot başlatıldı, polling başlıyor...")
         
