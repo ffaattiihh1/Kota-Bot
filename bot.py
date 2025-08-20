@@ -750,7 +750,7 @@ if __name__ == "__main__":
         # Bot'u çalıştır
         print("✅ Bot başlatıldı, polling başlıyor...")
         
-        # En basit yaklaşım: post_init kullan
+        # Bot'u çalıştır
         app.post_init = set_bot_menu
         app.run_polling(drop_pending_updates=True)
         
