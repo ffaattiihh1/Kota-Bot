@@ -763,7 +763,7 @@ async def main():
     
     print("Bot çalışıyor...")
     
-    # Manuel polling yap
+    # Render için: Manuel polling yap
     await app.initialize()
     await app.start()
     await app.updater.start_polling(drop_pending_updates=True)
@@ -773,6 +773,7 @@ async def main():
         while True:
             await asyncio.sleep(1)
     except KeyboardInterrupt:
+        print("Bot durduruluyor...")
         await app.updater.stop()
         await app.stop()
         await app.shutdown()
