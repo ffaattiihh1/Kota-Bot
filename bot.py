@@ -775,18 +775,22 @@ async def main():
     
     print("Bot çalışıyor...")
     
-    # Webhook mode için sadece initialize et
+    # Geçici olarak polling mode'a geri dön
     await bot_app.initialize()
     await bot_app.start()
+    await bot_app.updater.start_polling(drop_pending_updates=True)
     
-    # Webhook URL'ini ayarla (Railway'de otomatik olacak)
-    webhook_url = os.environ.get("WEBHOOK_URL", "")
-    if webhook_url:
-        await bot_app.bot.set_webhook(url=f"{webhook_url}/webhook")
-        print(f"✅ Webhook ayarlandı: {webhook_url}/webhook")
-    else:
-        print("⚠️ WEBHOOK_URL environment variable bulunamadı")
-        print("Bot webhook mode'da çalışıyor ama webhook URL'i ayarlanmadı")
+    print("✅ Bot polling mode'da çalışıyor")
+    
+    # Bot'u çalışır durumda tut
+    try:
+        while True:
+            await asyncio.sleep(1)
+    except KeyboardInterrupt:
+        print("Bot durduruluyor...")
+        await bot_app.updater.stop()
+        await bot_app.stop()
+        await bot_app.shutdown()
     
     return bot_app
 
@@ -840,27 +844,14 @@ if __name__ == "__main__":
         flask_thread.start()
         print("✅ Flask server başlatıldı")
         
-        # Bot'u webhook mode'da başlat
-        print("✅ Bot webhook mode'da başlatıldı")
+        # Bot'u polling mode'da başlat
+        print("✅ Bot polling mode'da başlatıldı")
         
-        # Bot'u çalıştır ve Flask server'ı aktif tut
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        # Bot'u çalıştır
+        asyncio.run(main())
         
-        # Bot'u initialize et
-        bot_app = loop.run_until_complete(main())
-        
-        print("✅ Bot hazır, Flask server çalışıyor...")
-        print("🌐 Webhook endpoint: /webhook")
-        print("💚 Health check: /health")
-        
-        # Flask server'ı çalışır durumda tut
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            print("\n🛑 Bot durduruldu")
-            
+    except KeyboardInterrupt:
+        print("\n🛑 Bot durduruldu")
     except Exception as e:
         print(f"❌ Bot hatası: {e}")
         import traceback
