@@ -1,10 +1,11 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, CallbackQueryHandler, 
+    Application, CommandHandler, CallbackQueryHandler, 
     MessageHandler, ContextTypes, filters, ConversationHandler
 )
 from telegram.constants import ParseMode
 import json
+import asyncio
 
 # Bot ayarları
 BOT_TOKEN = "8085361560:AAEsZKphKDtQyfxMGUcUUd2XXXSh-VBHojk"
@@ -320,7 +321,9 @@ async def send_kotas_to_group():
             if i < len(kategori_sirasi) - 1:
                 mesaj += "---------------------------\n\n"
         
-        # Gruba mesaj gönder
+        # Gruba mesaj gönder (context.bot kullan)
+        # Bu fonksiyon context olmadan çağrıldığı için global app kullan
+        global app
         await app.bot.send_message(chat_id=GROUP_CHAT_ID, text=mesaj, parse_mode='Markdown')
         print(f"✅ Güncel kotalar gruba gönderildi: {GROUP_CHAT_ID}")
         
@@ -575,13 +578,21 @@ async def handle_menu_callback(query, data):
     elif data == "menu_start_survey":
         await start_survey(query.message, user_id)
     elif data == "menu_show_kota":
-        await show_kota(query, context=None)
+        # show_kota fonksiyonu Update objesi bekliyor, mock oluştur
+        mock_update = type('MockUpdate', (), {'message': query.message})()
+        await show_kota(mock_update, None)
     elif data == "menu_status":
-        await show_status(query, context=None)
+        # show_status fonksiyonu Update objesi bekliyor, mock oluştur
+        mock_update = type('MockUpdate', (), {'message': query.message})()
+        await show_status(mock_update, None)
     elif data == "menu_new_survey":
-        await yeni_anket(query, context=None)
+        # yeni_anket fonksiyonu Update objesi bekliyor, mock oluştur
+        mock_update = type('MockUpdate', (), {'message': query.message})()
+        await yeni_anket(mock_update, None)
     elif data == "menu_help":
-        await help(query, context=None)
+        # help fonksiyonu Update objesi bekliyor, mock oluştur
+        mock_update = type('MockUpdate', (), {'message': query.message})()
+        await help(mock_update, None)
 
 async def handle_admin_callback(query, data):
     """Admin butonlarını işler"""
@@ -598,9 +609,13 @@ async def handle_admin_callback(query, data):
     elif data == "admin_bilgi":
         await query.message.reply_text(f"🔧 **ADMIN BİLGİLERİ**\n\n👤 Admin ID: `{ADMIN_ID}`\n📊 Toplam Kategori: {len(kategori_sirasi)}\n📝 Toplam Seçenek: {sum(len(kotalar[k]) for k in kotalar)}", parse_mode='Markdown')
     elif data == "admin_kota_guncelle":
-        await update_kota_start(query, context=None)
+        # update_kota_start fonksiyonu Update objesi bekliyor, mock oluştur
+        mock_update = type('MockUpdate', (), {'message': query.message})()
+        await update_kota_start(mock_update, None)
     elif data == "admin_yeni_anket":
-        await yeni_anket(query, context=None)
+        # yeni_anket fonksiyonu Update objesi bekliyor, mock oluştur
+        mock_update = type('MockUpdate', (), {'message': query.message})()
+        await yeni_anket(mock_update, None)
 
 async def handle_selection_callback(query, data, user_id):
     """Seçim butonlarını işler"""
@@ -680,9 +695,6 @@ async def start_survey(message_obj, user_id):
     # İlk kategoriyi göster
     await show_category_buttons(message_obj, user_id, 0)
 
-# Bot uygulamasını oluştur
-app = ApplicationBuilder().token(BOT_TOKEN).build()
-
 # Bot menü butonunu ayarla
 async def set_bot_menu(application):
     """Bot menü butonunu ayarlar"""
@@ -717,30 +729,53 @@ async def set_bot_menu(application):
     except Exception as e:
         print(f"❌ Bot menü butonları ayarlanamadı: {e}")
 
-# Handler'ları ekle
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(button_callback))
-app.add_handler(CommandHandler("help", help))
-app.add_handler(CommandHandler("chatid", get_chat_id))
-app.add_handler(CommandHandler("showkota", show_kota))
-app.add_handler(CommandHandler("status", show_status))
-app.add_handler(CommandHandler("yeni_anket", yeni_anket))
-
-# Admin komutları
-app.add_handler(CommandHandler("addkota", add_kota))
-app.add_handler(CommandHandler("addkategori", add_kategori))
-app.add_handler(CommandHandler("delkota", del_kota))
-app.add_handler(CommandHandler("delkategori", del_kategori))
-
-# ConversationHandler ile güncelleme
-conv_handler = ConversationHandler(
-    entry_points=[CommandHandler("updatekota", update_kota_start)],
-    states={UPDATE_KOTA: [MessageHandler(filters.TEXT & ~filters.COMMAND, update_kota_process)]},
-    fallbacks=[]
-)
-app.add_handler(conv_handler)
-
-print("Bot çalışıyor...")
+# Ana fonksiyon
+async def main():
+    """Ana fonksiyon"""
+    # Bot uygulamasını oluştur
+    app = Application.builder().token(BOT_TOKEN).build()
+    
+    # Bot menü butonlarını ayarla
+    app.post_init = set_bot_menu
+    
+    # Handler'ları ekle
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(button_callback))
+    app.add_handler(CommandHandler("help", help))
+    app.add_handler(CommandHandler("chatid", get_chat_id))
+    app.add_handler(CommandHandler("showkota", show_kota))
+    app.add_handler(CommandHandler("status", show_status))
+    app.add_handler(CommandHandler("yeni_anket", yeni_anket))
+    
+    # Admin komutları
+    app.add_handler(CommandHandler("addkota", add_kota))
+    app.add_handler(CommandHandler("addkategori", add_kategori))
+    app.add_handler(CommandHandler("delkota", del_kota))
+    app.add_handler(CommandHandler("delkategori", del_kategori))
+    
+    # ConversationHandler ile güncelleme
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("updatekota", update_kota_start)],
+        states={UPDATE_KOTA: [MessageHandler(filters.TEXT & ~filters.COMMAND, update_kota_process)]},
+        fallbacks=[]
+    )
+    app.add_handler(conv_handler)
+    
+    print("Bot çalışıyor...")
+    
+    # Manuel polling yap
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling(drop_pending_updates=True)
+    
+    # Bot'u çalışır durumda tut
+    try:
+        while True:
+            await asyncio.sleep(1)
+    except KeyboardInterrupt:
+        await app.updater.stop()
+        await app.stop()
+        await app.shutdown()
 
 # Bot başlatıldığında menü butonlarını ayarla
 if __name__ == "__main__":
@@ -750,9 +785,8 @@ if __name__ == "__main__":
         # Bot'u çalıştır
         print("✅ Bot başlatıldı, polling başlıyor...")
         
-        # Bot'u çalıştır
-        app.post_init = set_bot_menu
-        app.run_polling(drop_pending_updates=True)
+        # En basit yaklaşım: asyncio.run kullan
+        asyncio.run(main())
         
     except KeyboardInterrupt:
         print("\n🛑 Bot durduruldu")
