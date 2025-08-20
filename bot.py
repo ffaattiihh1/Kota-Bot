@@ -793,6 +793,11 @@ async def main():
 def health_check():
     return "OK"
 
+# Railway health check için /health endpoint'i de ekle
+@web_app.route('/health')
+def health_check_alt():
+    return "OK"
+
 # Flask health check thread'i
 def run_flask_server():
     web_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
