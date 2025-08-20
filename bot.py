@@ -15,9 +15,13 @@ import time
 web_app = Flask(__name__)
 
 # Bot ayarları
-BOT_TOKEN = "8085361560:AAEsZKphKDtQyfxMGUcUUd2XXXSh-VBHojk"
+BOT_TOKEN = "8085361560:AAEsZKphKDtQyfxMGUcUUd2XXXSh-VBHojk"  # Orijinal token
+# BOT_TOKEN = "TEST_TOKEN_FOR_LOCAL"  # Geçici test token
 ADMIN_ID = 6472876244  # Buraya sizin Telegram ID'nizi yazın (önce /chatid ile öğrenin)
 GROUP_CHAT_ID = -1002882964046  # Bira Raf Kota grubu
+
+# Environment variable kontrolü
+PAUSE_BOT = os.environ.get("PAUSE_BOT", "false").lower() == "true"
 
 # ConversationHandler için state ve geçici kullanıcı ilerleme dict'i
 UPDATE_KOTA = range(1)
@@ -743,6 +747,12 @@ async def set_bot_menu(application):
 async def main():
     """Ana fonksiyon"""
     global bot_app
+    
+    # Eğer PAUSE_BOT true ise bot'u çalıştırma
+    if PAUSE_BOT:
+        print("⏸️ Bot duraklatıldı (PAUSE_BOT=true)")
+        return None
+    
     bot_app = Application.builder().token(BOT_TOKEN).build()
     
     # Bot menü butonlarını ayarla
