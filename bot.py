@@ -9,6 +9,7 @@ import asyncio
 from flask import Flask, request
 import threading
 import os
+import time
 
 # Flask app oluştur (Railway için)
 web_app = Flask(__name__)
@@ -741,7 +742,6 @@ async def set_bot_menu(application):
 # Ana fonksiyon
 async def main():
     """Ana fonksiyon"""
-    # Bot uygulamasını oluştur
     global bot_app
     bot_app = Application.builder().token(BOT_TOKEN).build()
     
@@ -766,27 +766,29 @@ async def main():
     # ConversationHandler ile güncelleme
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("updatekota", update_kota_start)],
-        states={UPDATE_KOTA: [MessageHandler(filters.TEXT & ~filters.COMMAND, update_kota_process)]},
+        states={
+            UPDATE_KOTA: [CallbackQueryHandler(update_kota_process)]
+        },
         fallbacks=[]
     )
     bot_app.add_handler(conv_handler)
     
     print("Bot çalışıyor...")
     
-    # Render için: Manuel polling yap
+    # Webhook mode için sadece initialize et
     await bot_app.initialize()
     await bot_app.start()
-    await bot_app.updater.start_polling(drop_pending_updates=True)
     
-    # Bot'u çalışır durumda tut
-    try:
-        while True:
-            await asyncio.sleep(1)
-    except KeyboardInterrupt:
-        print("Bot durduruluyor...")
-        await bot_app.updater.stop()
-        await bot_app.stop()
-        await bot_app.shutdown()
+    # Webhook URL'ini ayarla (Railway'de otomatik olacak)
+    webhook_url = os.environ.get("WEBHOOK_URL", "")
+    if webhook_url:
+        await bot_app.bot.set_webhook(url=f"{webhook_url}/webhook")
+        print(f"✅ Webhook ayarlandı: {webhook_url}/webhook")
+    else:
+        print("⚠️ WEBHOOK_URL environment variable bulunamadı")
+        print("Bot webhook mode'da çalışıyor ama webhook URL'i ayarlanmadı")
+    
+    return bot_app
 
 # Flask health check endpoint'i
 @web_app.route('/')
@@ -797,6 +799,32 @@ def health_check():
 @web_app.route('/health')
 def health_check_alt():
     return "OK"
+
+# Telegram webhook endpoint'i
+@web_app.route('/webhook', methods=['POST'])
+def webhook():
+    try:
+        # JSON data'yı al
+        data = request.get_json()
+        
+        # Update objesi oluştur
+        update = Update.de_json(data, bot_app.bot)
+        
+        # Update'i işle (async olmayan şekilde)
+        asyncio.run(process_update(update))
+        
+        return "OK"
+    except Exception as e:
+        print(f"Webhook hatası: {e}")
+        return "Error", 500
+
+# Update'i işle
+async def process_update(update):
+    try:
+        # Update'i bot'a gönder
+        await bot_app.process_update(update)
+    except Exception as e:
+        print(f"Update işleme hatası: {e}")
 
 # Flask health check thread'i
 def run_flask_server():
@@ -812,14 +840,27 @@ if __name__ == "__main__":
         flask_thread.start()
         print("✅ Flask server başlatıldı")
         
-        # Bot'u çalıştır
-        print("✅ Bot başlatıldı, polling başlıyor...")
+        # Bot'u webhook mode'da başlat
+        print("✅ Bot webhook mode'da başlatıldı")
         
-        # En basit yaklaşım: asyncio.run kullan
-        asyncio.run(main())
+        # Bot'u çalıştır ve Flask server'ı aktif tut
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         
-    except KeyboardInterrupt:
-        print("\n🛑 Bot durduruldu")
+        # Bot'u initialize et
+        bot_app = loop.run_until_complete(main())
+        
+        print("✅ Bot hazır, Flask server çalışıyor...")
+        print("🌐 Webhook endpoint: /webhook")
+        print("💚 Health check: /health")
+        
+        # Flask server'ı çalışır durumda tut
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\n🛑 Bot durduruldu")
+            
     except Exception as e:
         print(f"❌ Bot hatası: {e}")
         import traceback
