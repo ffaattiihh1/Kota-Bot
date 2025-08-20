@@ -1,7 +1,7 @@
 {
   "cinsiyet": {
     "Erkek": 41,
-    "Kadın": 39
+    "Kadın": 38
   },
   "yas": {
     "18-24": -1,
@@ -13,13 +13,13 @@
     "AB": 0,
     "C1": 27,
     "C2": 12,
-    "DE": 41
+    "DE": 40
   },
   "marka": {
     "Efes Pilsen": 14,
     "Efes Malt": 12,
     "Bremen 1827": 9,
-    "Tuborg Gold": 31,
+    "Tuborg Gold": 30,
     "Tuborg Special": 10,
     "Carlsberg": 4,
     "Diğer": 0
@@ -28,7 +28,7 @@
     "Çalışan": 80,
     "Öğrenci": -5,
     "Ev hanımı": -1,
-    "İşsiz": 11,
+    "İşsiz": 10,
     "Emekli": 0
   },
   "mezuniyet": {
@@ -39,16 +39,16 @@
     "Meslek lisesi mezunu": 6,
     "Düz lise mezunu": 25,
     "Ortaokul mezunu": 1,
-    "İlkokul mezunu": 28,
+    "İlkokul mezunu": 27,
     "Eğitimsiz / ilkokul terk": -1
   },
   "medeni_durum": {
-    "Evli": 10,
+    "Evli": 9,
     "Bekar": 74
   },
   "kullanim": {
     "Heavy": 49,
-    "Medium": 34,
+    "Medium": 33,
     "Light": 2
   }
 }

@@ -777,7 +777,7 @@ async def main():
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("updatekota", update_kota_start)],
         states={
-            UPDATE_KOTA: [CallbackQueryHandler(update_kota_process)]
+            UPDATE_KOTA: [MessageHandler(filters.TEXT & ~filters.COMMAND, update_kota_process)]
         },
         fallbacks=[]
     )
