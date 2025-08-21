@@ -7,14 +7,7 @@
     }
   ],
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "bot.py"
-    }
-  ],
-  "functions": {
-    "bot.py": {
-      "maxDuration": 30
-    }
-  }
+    { "src": "/health", "dest": "bot.py" },
+    { "src": "/webhook", "dest": "bot.py" }
+  ]
 }
