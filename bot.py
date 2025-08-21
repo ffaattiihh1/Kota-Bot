@@ -112,7 +112,15 @@ async def ask_next_kota(update_or_message, user_id):
     )
 
 async def update_kota_process(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"🔍 update_kota_process çağrıldı")
+    print(f"🔍 update type: {type(update)}")
+    print(f"🔍 update.message: {update.message}")
+    
     user_id = update.message.from_user.id
+    print(f"🔍 user_id: {user_id}")
+    print(f"🔍 ADMIN_ID: {ADMIN_ID}")
+    print(f"🔍 update_progress: {update_progress}")
+    
     if user_id != ADMIN_ID or user_id not in update_progress:
         await update.message.reply_text("❌ Yetkiniz yok veya işlem başlatmadınız.")
         return ConversationHandler.END
@@ -122,9 +130,16 @@ async def update_kota_process(update: Update, context: ContextTypes.DEFAULT_TYPE
     secenekler = list(kotalar[kategori].keys())
     secenek_idx = update_progress[user_id].get("secenek_index", 0)
     
+    print(f"🔍 kategori: {kategori}")
+    print(f"🔍 secenekler: {secenekler}")
+    print(f"🔍 secenek_idx: {secenek_idx}")
+    
     text = update.message.text.strip()
+    print(f"🔍 text: {text}")
+    
     try:
         yeni_kota = int(text)
+        print(f"🔍 yeni_kota: {yeni_kota}")
     except ValueError:
         await update.message.reply_text("❌ Lütfen sadece sayı giriniz.")
         return UPDATE_KOTA
@@ -849,16 +864,23 @@ if __name__ == "__main__":
     print("🚀 Bot başlatılıyor...")
     
     try:
-        # Flask server'ı ayrı thread'de başlat
-        flask_thread = threading.Thread(target=run_flask_server, daemon=True)
-        flask_thread.start()
-        print("✅ Flask server başlatıldı")
-        
-        # Bot'u polling mode'da başlat
-        print("✅ Bot polling mode'da başlatıldı")
-        
-        # Bot'u çalıştır
-        asyncio.run(main())
+        # Vercel'de çalışıyorsa webhook mode, local'de polling mode
+        if os.environ.get("VERCEL"):
+            print("🌐 Vercel'de çalışıyor - webhook mode")
+            # Vercel'de sadece Flask server çalışacak
+            run_flask_server()
+        else:
+            print("🏠 Local'de çalışıyor - polling mode")
+            # Flask server'ı ayrı thread'de başlat
+            flask_thread = threading.Thread(target=run_flask_server, daemon=True)
+            flask_thread.start()
+            print("✅ Flask server başlatıldı")
+            
+            # Bot'u polling mode'da başlat
+            print("✅ Bot polling mode'da başlatıldı")
+            
+            # Bot'u çalıştır
+            asyncio.run(main())
         
     except KeyboardInterrupt:
         print("\n🛑 Bot durduruldu")
