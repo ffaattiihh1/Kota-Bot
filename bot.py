@@ -11,14 +11,15 @@ import threading
 import os
 import time
 
-# Flask app oluştur (Railway için)
+# Flask app oluştur (Railway/Vercel için)
 web_app = Flask(__name__)
+# Vercel '@vercel/python' Flask uygulamasını 'app' adıyla bekler
+app = web_app
 
 # Bot ayarları
-BOT_TOKEN = "8085361560:AAEsZKphKDtQyfxMGUcUUd2XXXSh-VBHojk"  # Orijinal token
-# BOT_TOKEN = "TEST_TOKEN_FOR_LOCAL"  # Geçici test token
-ADMIN_ID = 6472876244  # Buraya sizin Telegram ID'nizi yazın (önce /chatid ile öğrenin)
-GROUP_CHAT_ID = -1002882964046  # Bira Raf Kota grubu
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8085361560:AAEsZKphKDtQyfxMGUcUUd2XXXSh-VBHojk")  # Env > fallback
+ADMIN_ID = int(os.environ.get("ADMIN_ID", 6472876244))
+GROUP_CHAT_ID = int(os.environ.get("GROUP_CHAT_ID", -1002882964046))
 
 # Environment variable kontrolü
 PAUSE_BOT = os.environ.get("PAUSE_BOT", "false").lower() == "true"
@@ -833,19 +834,48 @@ def health_check_alt():
 @web_app.route('/webhook', methods=['POST'])
 def webhook():
     try:
-        # JSON data'yı al
+        ensure_bot_initialized()
         data = request.get_json()
-        
-        # Update objesi oluştur
         update = Update.de_json(data, bot_app.bot)
-        
-        # Update'i işle (async olmayan şekilde)
         asyncio.run(process_update(update))
-        
         return "OK"
     except Exception as e:
         print(f"Webhook hatası: {e}")
         return "Error", 500
+
+# Bot'u lazy-init eden yardımcı
+def ensure_bot_initialized():
+    global bot_app
+    if bot_app is not None:
+        return
+    # Minimal init: handler'ları kur
+    bot_app = Application.builder().token(BOT_TOKEN).build()
+    bot_app.post_init = set_bot_menu
+    bot_app.add_handler(CommandHandler("start", start))
+    bot_app.add_handler(CallbackQueryHandler(button_callback))
+    bot_app.add_handler(CommandHandler("help", help))
+    bot_app.add_handler(CommandHandler("chatid", get_chat_id))
+    bot_app.add_handler(CommandHandler("showkota", show_kota))
+    bot_app.add_handler(CommandHandler("status", show_status))
+    bot_app.add_handler(CommandHandler("yeni_anket", yeni_anket))
+    bot_app.add_handler(CommandHandler("addkota", add_kota))
+    bot_app.add_handler(CommandHandler("addkategori", add_kategori))
+    bot_app.add_handler(CommandHandler("delkota", del_kota))
+    bot_app.add_handler(CommandHandler("delkategori", del_kategori))
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("updatekota", update_kota_start)],
+        states={
+            UPDATE_KOTA: [MessageHandler(filters.TEXT & ~filters.COMMAND, update_kota_process)]
+        },
+        fallbacks=[]
+    )
+    bot_app.add_handler(conv_handler)
+    # Initialize app to be able to process updates
+    try:
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(bot_app.initialize())
+    except Exception as e:
+        print(f"Lazy init initialize hatası: {e}")
 
 # Update'i işle
 async def process_update(update):
