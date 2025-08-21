@@ -71,7 +71,15 @@ async def update_kota_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Yetkiniz yok")
         return ConversationHandler.END
     
+    # Önceki işlem varsa temizle
+    if user_id in update_progress:
+        del update_progress[user_id]
+    
+    # Yeni işlem başlat
     update_progress[user_id] = {"kategori_index": 0, "kategori": None, "secenek": None, "secenek_index": 0}
+    
+    print(f"🚀 updatekota başlatıldı: user_id={user_id}, progress={update_progress[user_id]}")
+    
     await ask_next_kota(update.message, user_id)
     return UPDATE_KOTA
 
@@ -89,8 +97,9 @@ async def ask_next_kota(update_or_message, user_id):
     if not secenekler:
         await update_or_message.reply_text(f"{kategori_adi_formatla(kategori)} kategorisinde hiç seçenek yok, atlanıyor...")
         update_progress[user_id]["kategori_index"] += 1
-        await ask_next_kota(update_or_message, user_id)
-        return
+        update_progress[user_id]["secenek_index"] = 0
+        # Recursive call yerine döngü kullan
+        return await ask_next_kota(update_or_message, user_id)
     
     # Seçenek index'ini kontrol et
     secenek_idx = update_progress[user_id].get("secenek_index", 0)
@@ -99,8 +108,8 @@ async def ask_next_kota(update_or_message, user_id):
         # Bu kategorideki tüm seçenekler tamamlandı, sonraki kategoriye geç
         update_progress[user_id]["kategori_index"] += 1
         update_progress[user_id]["secenek_index"] = 0
-        await ask_next_kota(update_or_message, user_id)
-        return
+        # Recursive call yerine döngü kullan
+        return await ask_next_kota(update_or_message, user_id)
     
     # Şu anki seçeneği göster
     secenek = secenekler[secenek_idx]
@@ -111,6 +120,8 @@ async def ask_next_kota(update_or_message, user_id):
         f"Şu anki kota: **{mevcut_kota}**\n\n"
         f"Yeni kotayı girin:"
     )
+    
+    return None  # Devam etmek için None döndür
 
 async def update_kota_process(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"🔍 update_kota_process çağrıldı")
@@ -162,10 +173,15 @@ async def update_kota_process(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Sonraki seçeneğe veya kategoriye geç
     await ask_next_kota(update.message, user_id)
     
+    # ask_next_kota fonksiyonundan dönen değeri kontrol et
     # Eğer tüm kategoriler tamamlandıysa ConversationHandler'ı sonlandır
     if update_progress[user_id]["kategori_index"] >= len(kategori_sirasi):
+        # Kullanıcı verilerini temizle
+        update_progress.pop(user_id, None)
+        print(f"✅ updatekota tamamlandı: user_id={user_id}")
         return ConversationHandler.END
     
+    print(f"🔄 updatekota devam ediyor: user_id={user_id}, kategori_index={update_progress[user_id]['kategori_index']}")
     return UPDATE_KOTA
 
 # === ANA FONKSİYONLAR ===
@@ -795,10 +811,10 @@ async def main():
         states={
             UPDATE_KOTA: [MessageHandler(filters.TEXT & ~filters.COMMAND, update_kota_process)]
         },
-        fallbacks=[]
+        fallbacks=[CommandHandler("cancel", lambda u, c: ConversationHandler.END)]
     )
     bot_app.add_handler(conv_handler)
-    
+
     print("Bot çalışıyor...")
     
     # Geçici olarak polling mode'a geri dön
@@ -830,17 +846,33 @@ def health_check():
 def health_check_alt():
     return "OK"
 
+# Webhook test endpoint'i
+@web_app.route('/test')
+def test_endpoint():
+    try:
+        ensure_bot_initialized()
+        return {"status": "OK", "bot_initialized": bot_app is not None}, 200
+    except Exception as e:
+        return {"status": "Error", "error": str(e)}, 500
+
 # Telegram webhook endpoint'i
 @web_app.route('/webhook', methods=['POST'])
 def webhook():
     try:
         ensure_bot_initialized()
         data = request.get_json()
-        update = Update.de_json(data, bot_app.bot)
-        asyncio.run(process_update(update))
-        return "OK"
+        if data:
+            update = Update.de_json(data, bot_app.bot)
+            # Yeni event loop oluştur
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(process_update(update))
+            loop.close()
+        return "OK", 200
     except Exception as e:
         print(f"Webhook hatası: {e}")
+        import traceback
+        traceback.print_exc()
         return "Error", 500
 
 # Bot'u lazy-init eden yardımcı
@@ -867,7 +899,7 @@ def ensure_bot_initialized():
         states={
             UPDATE_KOTA: [MessageHandler(filters.TEXT & ~filters.COMMAND, update_kota_process)]
         },
-        fallbacks=[]
+        fallbacks=[CommandHandler("cancel", lambda u, c: ConversationHandler.END)]
     )
     bot_app.add_handler(conv_handler)
     # Initialize app to be able to process updates
@@ -889,6 +921,24 @@ async def process_update(update):
 def run_flask_server():
     web_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
 
+# Vercel için webhook setup
+async def setup_webhook():
+    """Vercel'de webhook kurar"""
+    global bot_app
+    if bot_app is None:
+        ensure_bot_initialized()
+    
+    try:
+        # Webhook URL'ini ayarla
+        webhook_url = os.environ.get("WEBHOOK_URL")
+        if webhook_url:
+            await bot_app.bot.set_webhook(url=webhook_url + "/webhook")
+            print(f"✅ Webhook kuruldu: {webhook_url}/webhook")
+        else:
+            print("⚠️ WEBHOOK_URL environment variable bulunamadı")
+    except Exception as e:
+        print(f"❌ Webhook kurulum hatası: {e}")
+
 # Bot başlatıldığında menü butonlarını ayarla
 if __name__ == "__main__":
     print("🚀 Bot başlatılıyor...")
@@ -897,8 +947,16 @@ if __name__ == "__main__":
         # Vercel'de çalışıyorsa webhook mode, local'de polling mode
         if os.environ.get("VERCEL"):
             print("🌐 Vercel'de çalışıyor - webhook mode")
-            # Vercel'de sadece Flask server çalışacak
-            run_flask_server()
+            # Vercel'de bot'u initialize et ve webhook kur
+            ensure_bot_initialized()
+            # Webhook'u asenkron olarak kur
+            if os.environ.get("WEBHOOK_URL"):
+                # Webhook kurulumu için bir kez çalıştır
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(setup_webhook())
+                loop.close()
         else:
             print("🏠 Local'de çalışıyor - polling mode")
             # Flask server'ı ayrı thread'de başlat

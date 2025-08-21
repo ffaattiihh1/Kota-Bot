@@ -1,54 +1,54 @@
 {
   "cinsiyet": {
-    "Erkek": 11,
-    "Kadın": 25
+    "Erkek": 10,
+    "Kadın": 24
   },
   "yas": {
     "18-24": -3,
-    "25-34": 17,
-    "35-44": 27,
+    "25-34": 13,
+    "35-44": 26,
     "45-54": -2
   },
   "ses": {
     "AB": 0,
-    "C1": 14,
-    "C2": -1,
-    "DE": 27
+    "C1": 12,
+    "C2": -3,
+    "DE": 25
   },
   "marka": {
     "Efes Pilsen": 13,
-    "Efes Malt": 8,
+    "Efes Malt": 7,
     "Bremen 1827": 8,
-    "Tuborg Gold": 6,
+    "Tuborg Gold": 2,
     "Tuborg Special": 9,
     "Carlsberg": 2,
-    "Diğer": -6
+    "Diğer": -7
   },
   "calisma_durumu": {
-    "Çalışan": 49,
+    "Çalışan": 43,
     "Öğrenci": -6,
     "Ev hanımı": -1,
-    "İşsiz": 4,
+    "İşsiz": 0,
     "Emekli": -1
   },
   "mezuniyet": {
     "Üniversite yüksek lisans-doktora": 0,
-    "Üniversite mezunu (4 yıllık)": 18,
+    "Üniversite mezunu (4 yıllık)": 17,
     "Üniversite mezunu (açık öğretim)": 0,
-    "2 Yıllık Üniversite mezunu ": 7,
-    "Meslek lisesi mezunu": 6,
-    "Düz lise mezunu": 7,
-    "Ortaokul mezunu": -2,
-    "İlkokul mezunu": 10,
+    "2 Yıllık Üniversite mezunu ": 4,
+    "Meslek lisesi mezunu": 5,
+    "Düz lise mezunu": 4,
+    "Ortaokul mezunu": -3,
+    "İlkokul mezunu": 8,
     "Eğitimsiz / ilkokul terk": -1
   },
   "medeni_durum": {
     "Evli": 6,
-    "Bekar": 39
+    "Bekar": 33
   },
   "kullanim": {
-    "Heavy": 23,
-    "Medium": 22,
+    "Heavy": 17,
+    "Medium": 20,
     "Light": 2
   }
 }
