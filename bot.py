@@ -861,12 +861,53 @@ def test_endpoint():
     except Exception as e:
         return {"status": "Error", "error": str(e)}, 500
 
+# Webhook test endpoint'i (POST ile test)
+@web_app.route('/test-webhook', methods=['POST'])
+def test_webhook():
+    try:
+        print(f"🧪 Test webhook çağrıldı")
+        print(f"🧪 Headers: {dict(request.headers)}")
+        print(f"🧪 Data: {request.get_json()}")
+        
+        # Bot'u initialize et
+        ensure_bot_initialized()
+        
+        # Test update oluştur
+        from telegram import Update, Message, User, Chat
+        
+        # Mock user ve chat
+        user = User(id=6472876244, first_name="Test", is_bot=False)
+        chat = Chat(id=6472876244, type="private")
+        message = Message(message_id=1, date=1234567890, chat=chat, from_user=user, text="/start")
+        
+        # Mock update
+        update = Update(update_id=1, message=message)
+        
+        print(f"🧪 Mock update oluşturuldu: {update}")
+        
+        # Update'i işle
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(process_update(update))
+            print(f"🧪 Test update işlendi: {result}")
+        finally:
+            loop.close()
+        
+        return {"status": "OK", "test_completed": True}, 200
+    except Exception as e:
+        print(f"❌ Test webhook hatası: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "Error", "error": str(e)}, 500
+
 # Telegram webhook endpoint'i
 @web_app.route('/webhook', methods=['POST'])
 def webhook():
     try:
         print(f"🔔 Webhook çağrıldı: {request.method}")
         print(f"🔔 Headers: {dict(request.headers)}")
+        print(f"🔔 Content-Type: {request.headers.get('Content-Type', 'Not set')}")
         
         ensure_bot_initialized()
         data = request.get_json()
@@ -875,13 +916,18 @@ def webhook():
         if data:
             update = Update.de_json(data, bot_app.bot)
             print(f"🔔 Update parsed: {update}")
+            print(f"🔔 Update type: {type(update)}")
             
             # Yeni event loop oluştur
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
-                loop.run_until_complete(process_update(update))
-                print(f"✅ Update işlendi")
+                result = loop.run_until_complete(process_update(update))
+                print(f"✅ Update işlendi, result: {result}")
+            except Exception as process_error:
+                print(f"❌ Update işleme hatası: {process_error}")
+                import traceback
+                traceback.print_exc()
             finally:
                 loop.close()
         else:
@@ -946,10 +992,22 @@ def ensure_bot_initialized():
 # Update'i işle
 async def process_update(update):
     try:
+        print(f"🔄 process_update başladı: {update}")
+        print(f"🔄 Update type: {type(update)}")
+        
+        if hasattr(update, 'message') and update.message:
+            print(f"🔄 Message from user: {update.message.from_user.id}")
+            print(f"🔄 Message text: {update.message.text}")
+        
         # Update'i bot'a gönder
-        await bot_app.process_update(update)
+        result = await bot_app.process_update(update)
+        print(f"✅ process_update tamamlandı: {result}")
+        return result
     except Exception as e:
-        print(f"Update işleme hatası: {e}")
+        print(f"❌ Update işleme hatası: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 # Flask health check thread'i
 def run_flask_server():
