@@ -857,7 +857,7 @@ def health_check_alt():
 def test_endpoint():
     try:
         ensure_bot_initialized()
-        return {"status": "OK", "bot_initialized": bot_app is not None}, 200
+        return {"status": "OK", "bot_initialized": bot_app is not None, "commit": "e7be69f"}, 200
     except Exception as e:
         return {"status": "Error", "error": str(e)}, 500
 
