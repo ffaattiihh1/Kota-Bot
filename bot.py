@@ -25,7 +25,8 @@ GROUP_CHAT_ID = int(os.environ.get("GROUP_CHAT_ID", -1002882964046))
 PAUSE_BOT = os.environ.get("PAUSE_BOT", "false").lower() == "true"
 
 # ConversationHandler için state ve geçici kullanıcı ilerleme dict'i
-UPDATE_KOTA = range(1)
+# Not: Tek bir state kullanılacak; int olmalı (range değil)
+UPDATE_KOTA = 1
 update_progress = {}
 
 # Kategori sırası
@@ -173,6 +174,11 @@ async def update_kota_process(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Sonraki seçeneğe veya kategoriye geç
     await ask_next_kota(update.message, user_id)
     
+    # ask_next_kota çağrısından sonra işlem bitmiş olabilir
+    if user_id not in update_progress:
+        print(f"✅ updatekota tamamlandı (progress temizlenmiş): user_id={user_id}")
+        return ConversationHandler.END
+
     # ask_next_kota fonksiyonundan dönen değeri kontrol et
     # Eğer tüm kategoriler tamamlandıysa ConversationHandler'ı sonlandır
     if update_progress[user_id]["kategori_index"] >= len(kategori_sirasi):
@@ -859,18 +865,31 @@ def test_endpoint():
 @web_app.route('/webhook', methods=['POST'])
 def webhook():
     try:
+        print(f"🔔 Webhook çağrıldı: {request.method}")
+        print(f"🔔 Headers: {dict(request.headers)}")
+        
         ensure_bot_initialized()
         data = request.get_json()
+        print(f"🔔 Webhook data: {data}")
+        
         if data:
             update = Update.de_json(data, bot_app.bot)
+            print(f"🔔 Update parsed: {update}")
+            
             # Yeni event loop oluştur
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(process_update(update))
-            loop.close()
+            try:
+                loop.run_until_complete(process_update(update))
+                print(f"✅ Update işlendi")
+            finally:
+                loop.close()
+        else:
+            print("⚠️ Webhook data boş")
+            
         return "OK", 200
     except Exception as e:
-        print(f"Webhook hatası: {e}")
+        print(f"❌ Webhook hatası: {e}")
         import traceback
         traceback.print_exc()
         return "Error", 500
@@ -879,10 +898,16 @@ def webhook():
 def ensure_bot_initialized():
     global bot_app
     if bot_app is not None:
+        print(f"✅ Bot zaten initialize edilmiş")
         return
+    
+    print(f"🚀 Bot initialize ediliyor...")
+    
     # Minimal init: handler'ları kur
     bot_app = Application.builder().token(BOT_TOKEN).build()
     bot_app.post_init = set_bot_menu
+    
+    # Handler'ları ekle
     bot_app.add_handler(CommandHandler("start", start))
     bot_app.add_handler(CallbackQueryHandler(button_callback))
     bot_app.add_handler(CommandHandler("help", help))
@@ -894,6 +919,8 @@ def ensure_bot_initialized():
     bot_app.add_handler(CommandHandler("addkategori", add_kategori))
     bot_app.add_handler(CommandHandler("delkota", del_kota))
     bot_app.add_handler(CommandHandler("delkategori", del_kategori))
+    
+    # ConversationHandler ekle
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("updatekota", update_kota_start)],
         states={
@@ -902,12 +929,19 @@ def ensure_bot_initialized():
         fallbacks=[CommandHandler("cancel", lambda u, c: ConversationHandler.END)]
     )
     bot_app.add_handler(conv_handler)
+    
+    print(f"✅ Handler'lar eklendi")
+    
     # Initialize app to be able to process updates
     try:
         loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         loop.run_until_complete(bot_app.initialize())
+        print(f"✅ Bot initialize edildi")
     except Exception as e:
-        print(f"Lazy init initialize hatası: {e}")
+        print(f"❌ Lazy init initialize hatası: {e}")
+        import traceback
+        traceback.print_exc()
 
 # Update'i işle
 async def process_update(update):
@@ -932,12 +966,20 @@ async def setup_webhook():
         # Webhook URL'ini ayarla
         webhook_url = os.environ.get("WEBHOOK_URL")
         if webhook_url:
+            # Webhook'u temizle ve yeniden kur
+            await bot_app.bot.delete_webhook()
             await bot_app.bot.set_webhook(url=webhook_url + "/webhook")
             print(f"✅ Webhook kuruldu: {webhook_url}/webhook")
+            
+            # Webhook bilgilerini kontrol et
+            webhook_info = await bot_app.bot.get_webhook_info()
+            print(f"🔍 Webhook bilgileri: {webhook_info}")
         else:
             print("⚠️ WEBHOOK_URL environment variable bulunamadı")
     except Exception as e:
         print(f"❌ Webhook kurulum hatası: {e}")
+        import traceback
+        traceback.print_exc()
 
 # Bot başlatıldığında menü butonlarını ayarla
 if __name__ == "__main__":

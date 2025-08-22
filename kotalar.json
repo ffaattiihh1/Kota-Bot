@@ -1,31 +1,31 @@
 {
   "cinsiyet": {
-    "Erkek": 10,
-    "Kadın": 24
+    "Erkek": 7,
+    "Kadın": 15
   },
   "yas": {
     "18-24": -3,
-    "25-34": 13,
-    "35-44": 26,
+    "25-34": 10,
+    "35-44": 20,
     "45-54": -2
   },
   "ses": {
     "AB": 0,
-    "C1": 12,
+    "C1": 11,
     "C2": -3,
-    "DE": 25
+    "DE": 18
   },
   "marka": {
-    "Efes Pilsen": 13,
-    "Efes Malt": 7,
+    "Efes Pilsen": 10,
+    "Efes Malt": 6,
     "Bremen 1827": 8,
-    "Tuborg Gold": 2,
-    "Tuborg Special": 9,
+    "Tuborg Gold": 0,
+    "Tuborg Special": 8,
     "Carlsberg": 2,
-    "Diğer": -7
+    "Diğer": -8
   },
   "calisma_durumu": {
-    "Çalışan": 43,
+    "Çalışan": 36,
     "Öğrenci": -6,
     "Ev hanımı": -1,
     "İşsiz": 0,
@@ -37,18 +37,18 @@
     "Üniversite mezunu (açık öğretim)": 0,
     "2 Yıllık Üniversite mezunu ": 4,
     "Meslek lisesi mezunu": 5,
-    "Düz lise mezunu": 4,
-    "Ortaokul mezunu": -3,
-    "İlkokul mezunu": 8,
+    "Düz lise mezunu": 2,
+    "Ortaokul mezunu": -4,
+    "İlkokul mezunu": 2,
     "Eğitimsiz / ilkokul terk": -1
   },
   "medeni_durum": {
-    "Evli": 6,
-    "Bekar": 33
+    "Evli": 4,
+    "Bekar": 27
   },
   "kullanim": {
-    "Heavy": 17,
-    "Medium": 20,
+    "Heavy": 13,
+    "Medium": 17,
     "Light": 2
   }
 }
