@@ -122,7 +122,7 @@ async def ask_next_kota(update_or_message, user_id):
         f"Yeni kotayı girin:"
     )
     
-    return None  # Devam etmek için None döndür
+    return UPDATE_KOTA  # Devam etmek için UPDATE_KOTA döndür
 
 async def update_kota_process(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"🔍 update_kota_process çağrıldı")
@@ -172,18 +172,10 @@ async def update_kota_process(update: Update, context: ContextTypes.DEFAULT_TYPE
     update_progress[user_id]["secenek_index"] = secenek_idx + 1
     
     # Sonraki seçeneğe veya kategoriye geç
-    await ask_next_kota(update.message, user_id)
+    result = await ask_next_kota(update.message, user_id)
     
-    # ask_next_kota çağrısından sonra işlem bitmiş olabilir
-    if user_id not in update_progress:
-        print(f"✅ updatekota tamamlandı (progress temizlenmiş): user_id={user_id}")
-        return ConversationHandler.END
-
     # ask_next_kota fonksiyonundan dönen değeri kontrol et
-    # Eğer tüm kategoriler tamamlandıysa ConversationHandler'ı sonlandır
-    if update_progress[user_id]["kategori_index"] >= len(kategori_sirasi):
-        # Kullanıcı verilerini temizle
-        update_progress.pop(user_id, None)
+    if result == ConversationHandler.END:
         print(f"✅ updatekota tamamlandı: user_id={user_id}")
         return ConversationHandler.END
     
@@ -861,6 +853,37 @@ def test_endpoint():
     except Exception as e:
         return {"status": "Error", "error": str(e)}, 500
 
+# Debug endpoint'i
+@web_app.route('/debug')
+def debug_endpoint():
+    try:
+        ensure_bot_initialized()
+        
+        debug_info = {
+            "status": "OK",
+            "bot_initialized": bot_app is not None,
+            "bot_token_set": bool(BOT_TOKEN),
+            "admin_id": ADMIN_ID,
+            "group_chat_id": GROUP_CHAT_ID,
+            "pause_bot": PAUSE_BOT,
+            "kotalar_count": len(kotalar),
+            "kategori_sirasi": kategori_sirasi,
+            "update_progress_count": len(update_progress),
+            "user_secimleri_count": len(user_secimleri),
+            "user_gruplari_count": len(user_gruplari),
+            "environment": {
+                "VERCEL": os.environ.get("VERCEL", "Not set"),
+                "BOT_TOKEN": "Set" if os.environ.get("BOT_TOKEN") else "Not set",
+                "ADMIN_ID": os.environ.get("ADMIN_ID", "Not set"),
+                "GROUP_CHAT_ID": os.environ.get("GROUP_CHAT_ID", "Not set"),
+                "PAUSE_BOT": os.environ.get("PAUSE_BOT", "Not set")
+            }
+        }
+        
+        return debug_info, 200
+    except Exception as e:
+        return {"status": "Error", "error": str(e)}, 500
+
 # Webhook test endpoint'i (POST ile test)
 @web_app.route('/test-webhook', methods=['POST'])
 def test_webhook():
@@ -909,7 +932,9 @@ def webhook():
         print(f"🔔 Headers: {dict(request.headers)}")
         print(f"🔔 Content-Type: {request.headers.get('Content-Type', 'Not set')}")
         
+        # Bot'u initialize et
         ensure_bot_initialized()
+        
         data = request.get_json()
         print(f"🔔 Webhook data: {data}")
         
@@ -918,18 +943,9 @@ def webhook():
             print(f"🔔 Update parsed: {update}")
             print(f"🔔 Update type: {type(update)}")
             
-            # Yeni event loop oluştur
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                result = loop.run_until_complete(process_update(update))
-                print(f"✅ Update işlendi, result: {result}")
-            except Exception as process_error:
-                print(f"❌ Update işleme hatası: {process_error}")
-                import traceback
-                traceback.print_exc()
-            finally:
-                loop.close()
+            # Update'i işle
+            result = process_update_sync(update)
+            print(f"✅ Update işlendi, result: {result}")
         else:
             print("⚠️ Webhook data boş")
             
@@ -939,6 +955,23 @@ def webhook():
         import traceback
         traceback.print_exc()
         return "Error", 500
+
+# Sync wrapper for process_update
+def process_update_sync(update):
+    """Update'i sync olarak işler"""
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(process_update(update))
+            return result
+        finally:
+            loop.close()
+    except Exception as e:
+        print(f"❌ Sync update işleme hatası: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 # Bot'u lazy-init eden yardımcı
 def ensure_bot_initialized():
