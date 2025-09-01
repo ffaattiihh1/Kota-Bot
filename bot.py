@@ -1072,6 +1072,29 @@ async def setup_webhook():
         import traceback
         traceback.print_exc()
 
+# Webhook setup endpoint'i
+@web_app.route('/setup-webhook')
+def setup_webhook_endpoint():
+    try:
+        ensure_bot_initialized()
+        webhook_url = os.environ.get("WEBHOOK_URL")
+        if not webhook_url:
+            return {"status": "Error", "error": "WEBHOOK_URL not set"}, 400
+        # Run async setup in a fresh loop
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(setup_webhook())
+            # Fetch webhook info to return
+            webhook_info = loop.run_until_complete(bot_app.bot.get_webhook_info())
+        finally:
+            loop.close()
+        return {"status": "OK", "webhook_url": f"{webhook_url}/webhook", "webhook_info": webhook_info.to_dict()}, 200
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"status": "Error", "error": str(e)}, 500
+
 # Bot başlatıldığında menü butonlarını ayarla
 if __name__ == "__main__":
     print("🚀 Bot başlatılıyor...")

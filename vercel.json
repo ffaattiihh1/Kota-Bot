@@ -12,7 +12,8 @@
     { "src": "/webhook", "dest": "bot.py" },
     { "src": "/test", "dest": "bot.py" },
     { "src": "/test-webhook", "dest": "bot.py" },
-    { "src": "/debug", "dest": "bot.py" }
+    { "src": "/debug", "dest": "bot.py" },
+    { "src": "/setup-webhook", "dest": "bot.py" }
   ],
   "env": {
     "VERCEL": "1"
