@@ -30,7 +30,25 @@ UPDATE_KOTA = 1
 update_progress = {}
 
 # Kategori sırası
-kategori_sirasi = ["cinsiyet", "yas", "ses", "marka", "calisma_durumu", "mezuniyet", "medeni_durum", "kullanim"]
+kategori_sirasi = ["il", "cinsiyet", "yas", "ses", "sokak_isyeri_hane", "cadde"]
+
+# İller listesi
+iller = ["Lefkoşa", "Gazimağusa", "Girne", "Güzelyurt", "İskele"]
+
+# Cinsiyet seçenekleri
+cinsiyet_secenekleri = ["Erkek", "Kadın"]
+
+# Yaş grupları
+yas_gruplari = ["18-24", "25-34", "35-44", "45-54", "55-64"]
+
+# SES grupları
+ses_gruplari = ["AB", "C1", "C2", "DE"]
+
+# Sokak/İşyeri/Hane seçenekleri
+sokak_isyeri_hane_secenekleri = ["Sokak", "İşyeri", "Hane"]
+
+# Cadde seçenekleri (her il için farklı olabilir)
+cadde_secenekleri = ["Merkez", "Çevre", "Kırsal"]
 
 # Global değişkenler
 kotalar = {}
@@ -47,7 +65,24 @@ def kotalari_yukle():
         with open("kotalar.json", "r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
-        return {}
+        # Yeni yapıya göre varsayılan kotaları oluştur
+        return yeni_kota_yapisi_olustur()
+
+def yeni_kota_yapisi_olustur():
+    """Yeni proje yapısına göre kotaları oluşturur"""
+    kotalar = {}
+    
+    # Her il için kotaları oluştur
+    for il in iller:
+        kotalar[il] = {
+            "cinsiyet": {cinsiyet: 10 for cinsiyet in cinsiyet_secenekleri},
+            "yas": {yas: 10 for yas in yas_gruplari},
+            "ses": {ses: 10 for ses in ses_gruplari},
+            "sokak_isyeri_hane": {secenek: 10 for secenek in sokak_isyeri_hane_secenekleri},
+            "cadde": {cadde: 10 for cadde in cadde_secenekleri}
+        }
+    
+    return kotalar
 
 def kotalari_kaydet():
     """Kotaları JSON dosyasına kaydeder"""
@@ -93,7 +128,24 @@ async def ask_next_kota(update_or_message, user_id):
     
     kategori = kategori_sirasi[idx]
     update_progress[user_id]["kategori"] = kategori
-    secenekler = list(kotalar[kategori].keys())
+    
+    # İl seçimi özel işlem
+    if kategori == "il":
+        await update_or_message.reply_text(
+            f"📝 **{kategori_adi_formatla(kategori)}** kategorisi\n\n"
+            f"Hangi ilin kotalarını güncellemek istiyorsunuz?\n"
+            f"İller: {', '.join(iller)}\n\n"
+            f"İl adını girin:"
+        )
+        return UPDATE_KOTA
+    
+    # İl seçimi yapılmış mı kontrol et
+    if "secilen_il" not in update_progress[user_id]:
+        await update_or_message.reply_text("❌ Önce il seçimi yapmalısınız.")
+        return ConversationHandler.END
+    
+    secilen_il = update_progress[user_id]["secilen_il"]
+    secenekler = list(kotalar[secilen_il][kategori].keys())
     
     if not secenekler:
         await update_or_message.reply_text(f"{kategori_adi_formatla(kategori)} kategorisinde hiç seçenek yok, atlanıyor...")
@@ -114,10 +166,10 @@ async def ask_next_kota(update_or_message, user_id):
     
     # Şu anki seçeneği göster
     secenek = secenekler[secenek_idx]
-    mevcut_kota = kotalar[kategori][secenek]
+    mevcut_kota = kotalar[secilen_il][kategori][secenek]
     
     await update_or_message.reply_text(
-        f"📝 **{kategori_adi_formatla(kategori)}** kategorisi - **{secenek}**\n"
+        f"📝 **{secilen_il}** - **{kategori_adi_formatla(kategori)}** kategorisi - **{secenek}**\n"
         f"Şu anki kota: **{mevcut_kota}**\n\n"
         f"Yeni kotayı girin:"
     )
@@ -140,15 +192,39 @@ async def update_kota_process(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     idx = update_progress[user_id]["kategori_index"]
     kategori = update_progress[user_id]["kategori"]
-    secenekler = list(kotalar[kategori].keys())
-    secenek_idx = update_progress[user_id].get("secenek_index", 0)
     
     print(f"🔍 kategori: {kategori}")
-    print(f"🔍 secenekler: {secenekler}")
-    print(f"🔍 secenek_idx: {secenek_idx}")
     
     text = update.message.text.strip()
     print(f"🔍 text: {text}")
+    
+    # İl seçimi özel işlem
+    if kategori == "il":
+        if text not in iller:
+            await update.message.reply_text(f"❌ Geçersiz il. Lütfen şunlardan birini seçin: {', '.join(iller)}")
+            return UPDATE_KOTA
+        
+        update_progress[user_id]["secilen_il"] = text
+        await update.message.reply_text(f"✅ İl seçildi: **{text}**\n\nŞimdi bu ilin kotalarını güncelleyeceğiz.")
+        
+        # Sonraki kategoriye geç
+        result = await ask_next_kota(update.message, user_id)
+        if result == ConversationHandler.END:
+            return ConversationHandler.END
+        return UPDATE_KOTA
+    
+    # Diğer kategoriler için
+    if "secilen_il" not in update_progress[user_id]:
+        await update.message.reply_text("❌ Önce il seçimi yapmalısınız.")
+        return ConversationHandler.END
+    
+    secilen_il = update_progress[user_id]["secilen_il"]
+    secenekler = list(kotalar[secilen_il][kategori].keys())
+    secenek_idx = update_progress[user_id].get("secenek_index", 0)
+    
+    print(f"🔍 secilen_il: {secilen_il}")
+    print(f"🔍 secenekler: {secenekler}")
+    print(f"🔍 secenek_idx: {secenek_idx}")
     
     try:
         yeni_kota = int(text)
@@ -161,11 +237,11 @@ async def update_kota_process(update: Update, context: ContextTypes.DEFAULT_TYPE
     secenek = secenekler[secenek_idx]
     
     # Kotayı güncelle
-    kotalar[kategori][secenek] = yeni_kota
+    kotalar[secilen_il][kategori][secenek] = yeni_kota
     kotalari_kaydet()
     
     await update.message.reply_text(
-        f"✅ **{kategori_adi_formatla(kategori)}** - **{secenek}** kotası **{yeni_kota}** olarak güncellendi."
+        f"✅ **{secilen_il}** - **{kategori_adi_formatla(kategori)}** - **{secenek}** kotası **{yeni_kota}** olarak güncellendi."
     )
     
     # Seçenek index'ini artır
@@ -254,9 +330,21 @@ async def show_category_buttons(message_obj, user_id, kategori_index, context=No
         return
     
     kategori = kategori_sirasi[kategori_index]
-    secenekler = kotalar[kategori]
     
-    print(f"Kategori: {kategori}, Seçenekler: {list(secenekler.keys())}")
+    # İlk kategori (il) ise özel işlem
+    if kategori == "il":
+        await show_il_buttons(message_obj, user_id)
+        return
+    
+    # Kullanıcının seçtiği ili al
+    if user_id not in user_secimleri or "il" not in user_secimleri[user_id]:
+        await message_obj.reply_text("❌ Önce il seçimi yapmalısınız.")
+        return
+    
+    secilen_il = user_secimleri[user_id]["il"]
+    secenekler = kotalar[secilen_il][kategori]
+    
+    print(f"Kategori: {kategori}, İl: {secilen_il}, Seçenekler: {list(secenekler.keys())}")
     
     # Butonları oluştur
     keyboard = []
@@ -273,7 +361,20 @@ async def show_category_buttons(message_obj, user_id, kategori_index, context=No
     
     # Mesajı gönder
     await message_obj.reply_text(
-        text=f"📊 {kategori_adi_formatla(kategori)} seçiniz:",
+        text=f"📊 **{secilen_il}** - {kategori_adi_formatla(kategori)} seçiniz:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def show_il_buttons(message_obj, user_id):
+    """İl seçim butonlarını gösterir"""
+    keyboard = []
+    for i, il in enumerate(iller, 1):
+        label = f"{i}. {il}"
+        callback_data = f"sel_il_{i}"
+        keyboard.append([InlineKeyboardButton(label, callback_data=callback_data)])
+    
+    await message_obj.reply_text(
+        text="🏙️ **Nerede Yaşıyorsunuz?**\n\nLütfen yaşadığınız ili seçiniz:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -284,11 +385,16 @@ async def complete_survey(message_obj, user_id):
         return
     
     secimler = user_secimleri[user_id]
+    secilen_il = secimler.get("il")
     
-    # Kotaları güncelle
+    if not secilen_il:
+        await message_obj.reply_text("❌ İl seçimi bulunamadı")
+        return
+    
+    # Seçilen ilin kotalarını güncelle
     for kategori, secim in secimler.items():
-        if kategori in kotalar and secim in kotalar[kategori]:
-            kotalar[kategori][secim] -= 1
+        if kategori != "il" and kategori in kotalar[secilen_il] and secim in kotalar[secilen_il][kategori]:
+            kotalar[secilen_il][kategori][secim] -= 1
     
     # JSON'a kaydet
     kotalari_kaydet()
@@ -309,24 +415,28 @@ async def send_kotas_to_bira_raf_kota(message_obj, user_id, context=None):
     # Güncel kotaları güzel alt alta formatında hazırla
     mesaj = "📊 **GÜNCEL KOTALAR** 📊\n\n"
     
-    for i, kategori in enumerate(kategori_sirasi):
-        mesaj += f"🔹 **{kategori_adi_formatla(kategori).upper()}**\n"
+    for il in iller:
+        mesaj += f"🏙️ **{il.upper()}**\n"
+        mesaj += "=" * 20 + "\n\n"
         
-        for secenek, kalan in kotalar[kategori].items():
-            # Kota durumuna göre renk belirle (0 = kırmızı)
-            if kalan <= 0:
-                color = "🔴"  # Kırmızı (0 ve altı)
-            elif kalan <= 5:
-                color = "🟡"  # Sarı (1-5 arası)
-            else:
-                color = "🟢"  # Yeşil (6 ve üstü)
+        for kategori in kategori_sirasi[1:]:  # il hariç diğer kategoriler
+            mesaj += f"🔹 **{kategori_adi_formatla(kategori).upper()}**\n"
             
-            # Alt alta format: renk + seçenek adı + kota sayısı (kalın)
-            mesaj += f"{color}{secenek}\n**({kalan})**\n\n"
-        
-        # Kategoriler arasında çizgi ekle (son kategoride değil)
-        if i < len(kategori_sirasi) - 1:
+            for secenek, kalan in kotalar[il][kategori].items():
+                # Kota durumuna göre renk belirle (0 = kırmızı)
+                if kalan <= 0:
+                    color = "🔴"  # Kırmızı (0 ve altı)
+                elif kalan <= 5:
+                    color = "🟡"  # Sarı (1-5 arası)
+                else:
+                    color = "🟢"  # Yeşil (6 ve üstü)
+                
+                # Alt alta format: renk + seçenek adı + kota sayısı (kalın)
+                mesaj += f"{color}{secenek}\n**({kalan})**\n\n"
+            
             mesaj += "---------------------------\n\n"
+        
+        mesaj += "\n" + "=" * 30 + "\n\n"
     
     # Ana menüye dönüş butonu ekle
     keyboard = [
@@ -346,24 +456,28 @@ async def send_kotas_to_group():
         mesaj = "🆕 **YENİ ANKET TAMAMLANDI!** 🆕\n\n"
         mesaj += "📊 **GÜNCEL KOTALAR** 📊\n\n"
         
-        for i, kategori in enumerate(kategori_sirasi):
-            mesaj += f"🔹 **{kategori_adi_formatla(kategori).upper()}**\n"
+        for il in iller:
+            mesaj += f"🏙️ **{il.upper()}**\n"
+            mesaj += "=" * 20 + "\n\n"
             
-            for secenek, kalan in kotalar[kategori].items():
-                # Kota durumuna göre renk belirle (0 = kırmızı)
-                if kalan <= 0:
-                    color = "🔴"  # Kırmızı (0 ve altı)
-                elif kalan <= 5:
-                    color = "🟡"  # Sarı (1-5 arası)
-                else:
-                    color = "🟢"  # Yeşil (6 ve üstü)
+            for kategori in kategori_sirasi[1:]:  # il hariç diğer kategoriler
+                mesaj += f"🔹 **{kategori_adi_formatla(kategori).upper()}**\n"
                 
-                # Alt alta format: renk + seçenek adı + kota sayısı (kalın)
-                mesaj += f"{color}{secenek}\n**({kalan})**\n\n"
-            
-            # Kategoriler arasında çizgi ekle (son kategoride değil)
-            if i < len(kategori_sirasi) - 1:
+                for secenek, kalan in kotalar[il][kategori].items():
+                    # Kota durumuna göre renk belirle (0 = kırmızı)
+                    if kalan <= 0:
+                        color = "🔴"  # Kırmızı (0 ve altı)
+                    elif kalan <= 5:
+                        color = "🟡"  # Sarı (1-5 arası)
+                    else:
+                        color = "🟢"  # Yeşil (6 ve üstü)
+                    
+                    # Alt alta format: renk + seçenek adı + kota sayısı (kalın)
+                    mesaj += f"{color}{secenek}\n**({kalan})**\n\n"
+                
                 mesaj += "---------------------------\n\n"
+            
+            mesaj += "\n" + "=" * 30 + "\n\n"
         
         # Gruba mesaj gönder (context.bot kullan)
         # Bu fonksiyon context olmadan çağrıldığı için global app kullan
@@ -379,24 +493,28 @@ async def show_kota(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Güncel kotaları güzel alt alta formatında hazırla
     mesaj = "📊 **GÜNCEL KOTALAR** 📊\n\n"
     
-    for i, kategori in enumerate(kategori_sirasi):
-        mesaj += f"🔹 **{kategori_adi_formatla(kategori).upper()}**\n"
+    for il in iller:
+        mesaj += f"🏙️ **{il.upper()}**\n"
+        mesaj += "=" * 20 + "\n\n"
         
-        for secenek, kalan in kotalar[kategori].items():
-            # Kota durumuna göre renk belirle (0 = kırmızı)
-            if kalan <= 0:
-                color = "🔴"  # Kırmızı (0 ve altı)
-            elif kalan <= 5:
-                color = "🟡"  # Sarı (1-5 arası)
-            else:
-                color = "🟢"  # Yeşil (6 ve üstü)
+        for kategori in kategori_sirasi[1:]:  # il hariç diğer kategoriler
+            mesaj += f"🔹 **{kategori_adi_formatla(kategori).upper()}**\n"
             
-            # Alt alta format: renk + seçenek adı + kota sayısı (kalın)
-            mesaj += f"{color}{secenek}\n**({kalan})**\n\n"
-        
-        # Kategoriler arasında çizgi ekle (son kategoride değil)
-        if i < len(kategori_sirasi) - 1:
+            for secenek, kalan in kotalar[il][kategori].items():
+                # Kota durumuna göre renk belirle (0 = kırmızı)
+                if kalan <= 0:
+                    color = "🔴"  # Kırmızı (0 ve altı)
+                elif kalan <= 5:
+                    color = "🟡"  # Sarı (1-5 arası)
+                else:
+                    color = "🟢"  # Yeşil (6 ve üstü)
+                
+                # Alt alta format: renk + seçenek adı + kota sayısı (kalın)
+                mesaj += f"{color}{secenek}\n**({kalan})**\n\n"
+            
             mesaj += "---------------------------\n\n"
+        
+        mesaj += "\n" + "=" * 30 + "\n\n"
     
     # Ana menüye dönüş butonu ekle
     keyboard = [
@@ -666,8 +784,8 @@ async def handle_selection_callback(query, data, user_id):
     try:
         print(f"Selection callback data: {data}")
         
-        # Callback data formatı: sel_KATEGORI_INDEX
-        # Örnek: sel_calisma_durumu_1, sel_cinsiyet_2
+        # Callback data formatı: sel_KATEGORI_INDEX veya sel_il_INDEX
+        # Örnek: sel_il_1, sel_cinsiyet_2, sel_yas_3
         
         if not data.startswith('sel_'):
             await query.message.reply_text("❌ Geçersiz seçim formatı")
@@ -687,11 +805,41 @@ async def handle_selection_callback(query, data, user_id):
         
         print(f"Kategori: {kategori}, Secenek index: {secenek_index}")
         
-        if kategori not in kotalar:
+        # İl seçimi özel işlem
+        if kategori == "il":
+            if secenek_index >= len(iller):
+                await query.message.reply_text(f"❌ İl index'i geçersiz: {secenek_index + 1}")
+                return
+            
+            secilen_il = iller[secenek_index]
+            print(f"Seçilen il: {secilen_il}")
+            
+            # Seçimi kaydet
+            if user_id not in user_secimleri:
+                user_secimleri[user_id] = {}
+            user_secimleri[user_id][kategori] = secilen_il
+            
+            print(f"İl seçimi kaydedildi: {user_secimleri[user_id]}")
+            
+            # Sonraki kategoriyi göster
+            current_index = kategori_sirasi.index(kategori)
+            next_index = current_index + 1
+            
+            await show_category_buttons(query.message, user_id, next_index)
+            return
+        
+        # Diğer kategoriler için
+        if user_id not in user_secimleri or "il" not in user_secimleri[user_id]:
+            await query.message.reply_text("❌ Önce il seçimi yapmalısınız.")
+            return
+        
+        secilen_il = user_secimleri[user_id]["il"]
+        
+        if secilen_il not in kotalar or kategori not in kotalar[secilen_il]:
             await query.message.reply_text(f"❌ Kategori bulunamadı: {kategori}")
             return
         
-        secenekler = list(kotalar[kategori].keys())
+        secenekler = list(kotalar[secilen_il][kategori].keys())
         if secenek_index >= len(secenekler):
             await query.message.reply_text(f"❌ Seçenek index'i geçersiz: {secenek_index + 1}")
             return
@@ -700,8 +848,6 @@ async def handle_selection_callback(query, data, user_id):
         print(f"Seçilen seçenek: {secenek}")
         
         # Seçimi kaydet
-        if user_id not in user_secimleri:
-            user_secimleri[user_id] = {}
         user_secimleri[user_id][kategori] = secenek
         
         print(f"Seçim kaydedildi: {user_secimleri[user_id]}")

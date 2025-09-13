@@ -1,54 +1,147 @@
 {
-  "cinsiyet": {
-    "Erkek": -2,
-    "Kadın": 1
+  "Lefkoşa": {
+    "cinsiyet": {
+      "Erkek": 10,
+      "Kadın": 10
+    },
+    "yas": {
+      "18-24": 10,
+      "25-34": 10,
+      "35-44": 10,
+      "45-54": 10,
+      "55-64": 10
+    },
+    "ses": {
+      "AB": 10,
+      "C1": 10,
+      "C2": 10,
+      "DE": 10
+    },
+    "sokak_isyeri_hane": {
+      "Sokak": 10,
+      "İşyeri": 10,
+      "Hane": 10
+    },
+    "cadde": {
+      "Merkez": 10,
+      "Çevre": 10,
+      "Kırsal": 10
+    }
   },
-  "yas": {
-    "18-24": -3,
-    "25-34": 0,
-    "35-44": 5,
-    "45-54": -3
+  "Gazimağusa": {
+    "cinsiyet": {
+      "Erkek": 10,
+      "Kadın": 10
+    },
+    "yas": {
+      "18-24": 10,
+      "25-34": 10,
+      "35-44": 10,
+      "45-54": 10,
+      "55-64": 10
+    },
+    "ses": {
+      "AB": 10,
+      "C1": 10,
+      "C2": 10,
+      "DE": 10
+    },
+    "sokak_isyeri_hane": {
+      "Sokak": 10,
+      "İşyeri": 10,
+      "Hane": 10
+    },
+    "cadde": {
+      "Merkez": 10,
+      "Çevre": 10,
+      "Kırsal": 10
+    }
   },
-  "ses": {
-    "AB": 0,
-    "C1": 4,
-    "C2": -5,
-    "DE": 0
+  "Girne": {
+    "cinsiyet": {
+      "Erkek": 10,
+      "Kadın": 10
+    },
+    "yas": {
+      "18-24": 10,
+      "25-34": 10,
+      "35-44": 10,
+      "45-54": 10,
+      "55-64": 10
+    },
+    "ses": {
+      "AB": 10,
+      "C1": 10,
+      "C2": 10,
+      "DE": 10
+    },
+    "sokak_isyeri_hane": {
+      "Sokak": 10,
+      "İşyeri": 10,
+      "Hane": 10
+    },
+    "cadde": {
+      "Merkez": 10,
+      "Çevre": 10,
+      "Kırsal": 10
+    }
   },
-  "marka": {
-    "Efes Pilsen": 1,
-    "Efes Malt": 2,
-    "Bremen 1827": 3,
-    "Tuborg Gold": 0,
-    "Tuborg Special": 1,
-    "Carlsberg": 0,
-    "Diğer": -8
+  "Güzelyurt": {
+    "cinsiyet": {
+      "Erkek": 10,
+      "Kadın": 10
+    },
+    "yas": {
+      "18-24": 10,
+      "25-34": 10,
+      "35-44": 10,
+      "45-54": 10,
+      "55-64": 10
+    },
+    "ses": {
+      "AB": 10,
+      "C1": 10,
+      "C2": 10,
+      "DE": 10
+    },
+    "sokak_isyeri_hane": {
+      "Sokak": 10,
+      "İşyeri": 10,
+      "Hane": 10
+    },
+    "cadde": {
+      "Merkez": 10,
+      "Çevre": 10,
+      "Kırsal": 10
+    }
   },
-  "calisma_durumu": {
-    "Çalışan": 9,
-    "Öğrenci": -6,
-    "Ev hanımı": -1,
-    "İşsiz": 3,
-    "Emekli": -1
-  },
-  "mezuniyet": {
-    "Üniversite yüksek lisans-doktora": 0,
-    "Üniversite mezunu (4 yıllık)": 6,
-    "Üniversite mezunu (açık öğretim)": 0,
-    "2 Yıllık Üniversite mezunu ": 7,
-    "Meslek lisesi mezunu": 5,
-    "Düz lise mezunu": 0,
-    "Ortaokul mezunu": -7,
-    "İlkokul mezunu": -6,
-    "Eğitimsiz / ilkokul terk": -1
-  },
-  "medeni_durum": {
-    "Evli": 3,
-    "Bekar": 1
-  },
-  "kullanim": {
-    "Heavy": 3,
-    "Medium": 2,
-    "Light": 1
+  "İskele": {
+    "cinsiyet": {
+      "Erkek": 10,
+      "Kadın": 10
+    },
+    "yas": {
+      "18-24": 10,
+      "25-34": 10,
+      "35-44": 10,
+      "45-54": 10,
+      "55-64": 10
+    },
+    "ses": {
+      "AB": 10,
+      "C1": 10,
+      "C2": 10,
+      "DE": 10
+    },
+    "sokak_isyeri_hane": {
+      "Sokak": 10,
+      "İşyeri": 10,
+      "Hane": 10
+    },
+    "cadde": {
+      "Merkez": 10,
+      "Çevre": 10,
+      "Kırsal": 10
+    }
   }
 }
