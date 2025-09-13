@@ -30,7 +30,7 @@ UPDATE_KOTA = 1
 update_progress = {}
 
 # Kategori sırası
-kategori_sirasi = ["il", "cinsiyet", "yas", "ses", "sokak_isyeri_hane", "cadde"]
+kategori_sirasi = ["il", "cinsiyet", "yas", "ses", "cadde", "sokak_isyeri_hane"]
 
 # İller listesi
 iller = ["Lefkoşa", "Gazimağusa", "Girne", "Güzelyurt", "İskele"]
@@ -47,8 +47,17 @@ ses_gruplari = ["AB", "C1", "C2", "DE"]
 # Sokak/İşyeri/Hane seçenekleri
 sokak_isyeri_hane_secenekleri = ["Sokak", "İşyeri", "Hane"]
 
-# Cadde seçenekleri (her il için farklı olabilir)
-cadde_secenekleri = ["Merkez", "Çevre", "Kırsal"]
+# Her ilin caddeleri
+il_caddeleri = {
+    "Lefkoşa": ["Merkez", "Çevre", "Kırsal"],
+    "Gazimağusa": ["Merkez", "Çevre", "Kırsal"],
+    "Girne": ["Alsancak", "Merkez", "Çevre", "Kırsal"],
+    "Güzelyurt": ["Merkez", "Çevre", "Kırsal"],
+    "İskele": ["Merkez", "Çevre", "Kırsal"]
+}
+
+# Girne/Alsancak özel caddeleri
+girne_alsancak_caddeleri = ["Karaoğlanoğlu Cd.", "Atatürk Cd.", "Cumhuriyet Cd.", "Diğer"]
 
 # Global değişkenler
 kotalar = {}
@@ -78,9 +87,29 @@ def yeni_kota_yapisi_olustur():
             "cinsiyet": {cinsiyet: 10 for cinsiyet in cinsiyet_secenekleri},
             "yas": {yas: 10 for yas in yas_gruplari},
             "ses": {ses: 10 for ses in ses_gruplari},
-            "sokak_isyeri_hane": {secenek: 10 for secenek in sokak_isyeri_hane_secenekleri},
-            "cadde": {cadde: 10 for cadde in cadde_secenekleri}
+            "cadde": {},
+            "sokak_isyeri_hane": {}
         }
+        
+        # Her ilin caddelerini oluştur
+        for cadde in il_caddeleri[il]:
+            kotalar[il]["cadde"][cadde] = 10
+            
+            # Eğer Girne/Alsancak ise özel caddeleri ekle
+            if il == "Girne" and cadde == "Alsancak":
+                for ozel_cadde in girne_alsancak_caddeleri:
+                    kotalar[il]["sokak_isyeri_hane"][f"Alsancak_{ozel_cadde}"] = {
+                        "Sokak": 10,
+                        "İşyeri": 10,
+                        "Hane": 10
+                    }
+            else:
+                # Diğer caddeler için normal sokak/işyeri/hane kotaları
+                kotalar[il]["sokak_isyeri_hane"][cadde] = {
+                    "Sokak": 10,
+                    "İşyeri": 10,
+                    "Hane": 10
+                }
     
     return kotalar
 
@@ -342,6 +371,18 @@ async def show_category_buttons(message_obj, user_id, kategori_index, context=No
         return
     
     secilen_il = user_secimleri[user_id]["il"]
+    
+    # Cadde seçimi özel işlem
+    if kategori == "cadde":
+        await show_cadde_buttons(message_obj, user_id, secilen_il)
+        return
+    
+    # Sokak/işyeri/hane seçimi özel işlem
+    if kategori == "sokak_isyeri_hane":
+        await show_sokak_isyeri_hane_buttons(message_obj, user_id, secilen_il)
+        return
+    
+    # Diğer kategoriler için normal işlem
     secenekler = kotalar[secilen_il][kategori]
     
     print(f"Kategori: {kategori}, İl: {secilen_il}, Seçenekler: {list(secenekler.keys())}")
@@ -378,6 +419,66 @@ async def show_il_buttons(message_obj, user_id):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
+async def show_cadde_buttons(message_obj, user_id, secilen_il):
+    """Cadde seçim butonlarını gösterir"""
+    keyboard = []
+    caddeler = il_caddeleri[secilen_il]
+    
+    for i, cadde in enumerate(caddeler, 1):
+        # Cadde kotasını al
+        cadde_kota = kotalar[secilen_il]["cadde"].get(cadde, 0)
+        label = f"{i}. {cadde} ({cadde_kota})"
+        callback_data = f"sel_cadde_{i}"
+        keyboard.append([InlineKeyboardButton(label, callback_data=callback_data)])
+    
+    await message_obj.reply_text(
+        text=f"🛣️ **{secilen_il}** - Cadde seçiniz:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def show_sokak_isyeri_hane_buttons(message_obj, user_id, secilen_il):
+    """Sokak/İşyeri/Hane seçim butonlarını gösterir"""
+    if "cadde" not in user_secimleri[user_id]:
+        await message_obj.reply_text("❌ Önce cadde seçimi yapmalısınız.")
+        return
+    
+    secilen_cadde = user_secimleri[user_id]["cadde"]
+    
+    # Eğer Girne/Alsancak ise özel caddeleri göster
+    if secilen_il == "Girne" and secilen_cadde == "Alsancak":
+        await show_alsancak_ozel_cadde_buttons(message_obj, user_id)
+        return
+    
+    # Normal cadde için sokak/işyeri/hane seçenekleri
+    keyboard = []
+    sokak_isyeri_hane_kotalari = kotalar[secilen_il]["sokak_isyeri_hane"].get(secilen_cadde, {})
+    
+    for i, secenek in enumerate(sokak_isyeri_hane_secenekleri, 1):
+        kalan = sokak_isyeri_hane_kotalari.get(secenek, 0)
+        if kalan > 0:  # Sadece kotası olan seçenekleri göster
+            label = f"{i}. {secenek} ({kalan})"
+            callback_data = f"sel_sokak_isyeri_hane_{i}"
+            keyboard.append([InlineKeyboardButton(label, callback_data=callback_data)])
+    
+    await message_obj.reply_text(
+        text=f"🏠 **{secilen_il}** - **{secilen_cadde}** - Sokak/İşyeri/Hane seçiniz:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def show_alsancak_ozel_cadde_buttons(message_obj, user_id):
+    """Girne/Alsancak özel cadde seçim butonlarını gösterir"""
+    keyboard = []
+    
+    for i, ozel_cadde in enumerate(girne_alsancak_caddeleri, 1):
+        label = f"{i}. {ozel_cadde}"
+        callback_data = f"sel_alsancak_cadde_{i}"
+        keyboard.append([InlineKeyboardButton(label, callback_data=callback_data)])
+    
+    await message_obj.reply_text(
+        text="🛣️ **Girne/Alsancak** - Özel Cadde seçiniz:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
 async def complete_survey(message_obj, user_id):
     """Anketi tamamlar ve kotaları günceller"""
     if user_id not in user_secimleri:
@@ -393,7 +494,24 @@ async def complete_survey(message_obj, user_id):
     
     # Seçilen ilin kotalarını güncelle
     for kategori, secim in secimler.items():
-        if kategori != "il" and kategori in kotalar[secilen_il] and secim in kotalar[secilen_il][kategori]:
+        if kategori == "il":
+            continue
+        elif kategori == "sokak_isyeri_hane":
+            # Sokak/işyeri/hane için özel işlem
+            secilen_cadde = secimler.get("cadde")
+            if not secilen_cadde:
+                continue
+            
+            # Eğer Girne/Alsancak ve özel cadde seçildiyse
+            if secilen_il == "Girne" and secilen_cadde == "Alsancak" and "ozel_cadde" in secimler:
+                ozel_cadde = secimler["ozel_cadde"]
+                cadde_key = f"Alsancak_{ozel_cadde}"
+            else:
+                cadde_key = secilen_cadde
+            
+            if cadde_key in kotalar[secilen_il]["sokak_isyeri_hane"] and secim in kotalar[secilen_il]["sokak_isyeri_hane"][cadde_key]:
+                kotalar[secilen_il]["sokak_isyeri_hane"][cadde_key][secim] -= 1
+        elif kategori in kotalar[secilen_il] and secim in kotalar[secilen_il][kategori]:
             kotalar[secilen_il][kategori][secim] -= 1
     
     # JSON'a kaydet
@@ -419,7 +537,8 @@ async def send_kotas_to_bira_raf_kota(message_obj, user_id, context=None):
         mesaj += f"🏙️ **{il.upper()}**\n"
         mesaj += "=" * 20 + "\n\n"
         
-        for kategori in kategori_sirasi[1:]:  # il hariç diğer kategoriler
+        # Cinsiyet, yaş, ses kategorileri
+        for kategori in ["cinsiyet", "yas", "ses"]:
             mesaj += f"🔹 **{kategori_adi_formatla(kategori).upper()}**\n"
             
             for secenek, kalan in kotalar[il][kategori].items():
@@ -435,6 +554,35 @@ async def send_kotas_to_bira_raf_kota(message_obj, user_id, context=None):
                 mesaj += f"{color}{secenek}\n**({kalan})**\n\n"
             
             mesaj += "---------------------------\n\n"
+        
+        # Cadde kategorisi
+        mesaj += f"🔹 **CADDE**\n"
+        for cadde, kalan in kotalar[il]["cadde"].items():
+            if kalan <= 0:
+                color = "🔴"
+            elif kalan <= 5:
+                color = "🟡"
+            else:
+                color = "🟢"
+            
+            mesaj += f"{color}{cadde}\n**({kalan})**\n\n"
+        
+        mesaj += "---------------------------\n\n"
+        
+        # Sokak/İşyeri/Hane kategorisi
+        mesaj += f"🔹 **SOKAK/İŞYERİ/HANE**\n"
+        for cadde, sokak_isyeri_hane_kotalari in kotalar[il]["sokak_isyeri_hane"].items():
+            mesaj += f"**{cadde}:**\n"
+            for secenek, kalan in sokak_isyeri_hane_kotalari.items():
+                if kalan <= 0:
+                    color = "🔴"
+                elif kalan <= 5:
+                    color = "🟡"
+                else:
+                    color = "🟢"
+                
+                mesaj += f"  {color}{secenek}: **{kalan}**\n"
+            mesaj += "\n"
         
         mesaj += "\n" + "=" * 30 + "\n\n"
     
@@ -460,7 +608,8 @@ async def send_kotas_to_group():
             mesaj += f"🏙️ **{il.upper()}**\n"
             mesaj += "=" * 20 + "\n\n"
             
-            for kategori in kategori_sirasi[1:]:  # il hariç diğer kategoriler
+            # Cinsiyet, yaş, ses kategorileri
+            for kategori in ["cinsiyet", "yas", "ses"]:
                 mesaj += f"🔹 **{kategori_adi_formatla(kategori).upper()}**\n"
                 
                 for secenek, kalan in kotalar[il][kategori].items():
@@ -476,6 +625,35 @@ async def send_kotas_to_group():
                     mesaj += f"{color}{secenek}\n**({kalan})**\n\n"
                 
                 mesaj += "---------------------------\n\n"
+            
+            # Cadde kategorisi
+            mesaj += f"🔹 **CADDE**\n"
+            for cadde, kalan in kotalar[il]["cadde"].items():
+                if kalan <= 0:
+                    color = "🔴"
+                elif kalan <= 5:
+                    color = "🟡"
+                else:
+                    color = "🟢"
+                
+                mesaj += f"{color}{cadde}\n**({kalan})**\n\n"
+            
+            mesaj += "---------------------------\n\n"
+            
+            # Sokak/İşyeri/Hane kategorisi
+            mesaj += f"🔹 **SOKAK/İŞYERİ/HANE**\n"
+            for cadde, sokak_isyeri_hane_kotalari in kotalar[il]["sokak_isyeri_hane"].items():
+                mesaj += f"**{cadde}:**\n"
+                for secenek, kalan in sokak_isyeri_hane_kotalari.items():
+                    if kalan <= 0:
+                        color = "🔴"
+                    elif kalan <= 5:
+                        color = "🟡"
+                    else:
+                        color = "🟢"
+                    
+                    mesaj += f"  {color}{secenek}: **{kalan}**\n"
+                mesaj += "\n"
             
             mesaj += "\n" + "=" * 30 + "\n\n"
         
@@ -497,7 +675,8 @@ async def show_kota(update: Update, context: ContextTypes.DEFAULT_TYPE):
         mesaj += f"🏙️ **{il.upper()}**\n"
         mesaj += "=" * 20 + "\n\n"
         
-        for kategori in kategori_sirasi[1:]:  # il hariç diğer kategoriler
+        # Cinsiyet, yaş, ses kategorileri
+        for kategori in ["cinsiyet", "yas", "ses"]:
             mesaj += f"🔹 **{kategori_adi_formatla(kategori).upper()}**\n"
             
             for secenek, kalan in kotalar[il][kategori].items():
@@ -513,6 +692,35 @@ async def show_kota(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 mesaj += f"{color}{secenek}\n**({kalan})**\n\n"
             
             mesaj += "---------------------------\n\n"
+        
+        # Cadde kategorisi
+        mesaj += f"🔹 **CADDE**\n"
+        for cadde, kalan in kotalar[il]["cadde"].items():
+            if kalan <= 0:
+                color = "🔴"
+            elif kalan <= 5:
+                color = "🟡"
+            else:
+                color = "🟢"
+            
+            mesaj += f"{color}{cadde}\n**({kalan})**\n\n"
+        
+        mesaj += "---------------------------\n\n"
+        
+        # Sokak/İşyeri/Hane kategorisi
+        mesaj += f"🔹 **SOKAK/İŞYERİ/HANE**\n"
+        for cadde, sokak_isyeri_hane_kotalari in kotalar[il]["sokak_isyeri_hane"].items():
+            mesaj += f"**{cadde}:**\n"
+            for secenek, kalan in sokak_isyeri_hane_kotalari.items():
+                if kalan <= 0:
+                    color = "🔴"
+                elif kalan <= 5:
+                    color = "🟡"
+                else:
+                    color = "🟢"
+                
+                mesaj += f"  {color}{secenek}: **{kalan}**\n"
+            mesaj += "\n"
         
         mesaj += "\n" + "=" * 30 + "\n\n"
     
@@ -785,7 +993,7 @@ async def handle_selection_callback(query, data, user_id):
         print(f"Selection callback data: {data}")
         
         # Callback data formatı: sel_KATEGORI_INDEX veya sel_il_INDEX
-        # Örnek: sel_il_1, sel_cinsiyet_2, sel_yas_3
+        # Örnek: sel_il_1, sel_cinsiyet_2, sel_cadde_1, sel_alsancak_cadde_1
         
         if not data.startswith('sel_'):
             await query.message.reply_text("❌ Geçersiz seçim formatı")
@@ -828,7 +1036,92 @@ async def handle_selection_callback(query, data, user_id):
             await show_category_buttons(query.message, user_id, next_index)
             return
         
-        # Diğer kategoriler için
+        # Cadde seçimi özel işlem
+        if kategori == "cadde":
+            if user_id not in user_secimleri or "il" not in user_secimleri[user_id]:
+                await query.message.reply_text("❌ Önce il seçimi yapmalısınız.")
+                return
+            
+            secilen_il = user_secimleri[user_id]["il"]
+            caddeler = il_caddeleri[secilen_il]
+            
+            if secenek_index >= len(caddeler):
+                await query.message.reply_text(f"❌ Cadde index'i geçersiz: {secenek_index + 1}")
+                return
+            
+            secilen_cadde = caddeler[secenek_index]
+            print(f"Seçilen cadde: {secilen_cadde}")
+            
+            # Seçimi kaydet
+            user_secimleri[user_id][kategori] = secilen_cadde
+            
+            print(f"Cadde seçimi kaydedildi: {user_secimleri[user_id]}")
+            
+            # Sonraki kategoriyi göster
+            current_index = kategori_sirasi.index(kategori)
+            next_index = current_index + 1
+            
+            await show_category_buttons(query.message, user_id, next_index)
+            return
+        
+        # Alsancak özel cadde seçimi
+        if kategori == "alsancak_cadde":
+            if user_id not in user_secimleri or "il" not in user_secimleri[user_id] or "cadde" not in user_secimleri[user_id]:
+                await query.message.reply_text("❌ Önce il ve cadde seçimi yapmalısınız.")
+                return
+            
+            if secenek_index >= len(girne_alsancak_caddeleri):
+                await query.message.reply_text(f"❌ Özel cadde index'i geçersiz: {secenek_index + 1}")
+                return
+            
+            secilen_ozel_cadde = girne_alsancak_caddeleri[secenek_index]
+            print(f"Seçilen özel cadde: {secilen_ozel_cadde}")
+            
+            # Seçimi kaydet
+            user_secimleri[user_id]["ozel_cadde"] = secilen_ozel_cadde
+            
+            print(f"Özel cadde seçimi kaydedildi: {user_secimleri[user_id]}")
+            
+            # Sonraki kategoriyi göster (sokak/işyeri/hane)
+            current_index = kategori_sirasi.index("sokak_isyeri_hane")
+            next_index = current_index + 1
+            
+            await show_category_buttons(query.message, user_id, next_index)
+            return
+        
+        # Sokak/işyeri/hane seçimi özel işlem
+        if kategori == "sokak_isyeri_hane":
+            if user_id not in user_secimleri or "il" not in user_secimleri[user_id] or "cadde" not in user_secimleri[user_id]:
+                await query.message.reply_text("❌ Önce il ve cadde seçimi yapmalısınız.")
+                return
+            
+            secilen_il = user_secimleri[user_id]["il"]
+            secilen_cadde = user_secimleri[user_id]["cadde"]
+            
+            # Eğer Girne/Alsancak ve özel cadde seçildiyse
+            if secilen_il == "Girne" and secilen_cadde == "Alsancak" and "ozel_cadde" in user_secimleri[user_id]:
+                secilen_ozel_cadde = user_secimleri[user_id]["ozel_cadde"]
+                sokak_isyeri_hane_kotalari = kotalar[secilen_il]["sokak_isyeri_hane"].get(f"Alsancak_{secilen_ozel_cadde}", {})
+            else:
+                sokak_isyeri_hane_kotalari = kotalar[secilen_il]["sokak_isyeri_hane"].get(secilen_cadde, {})
+            
+            if secenek_index >= len(sokak_isyeri_hane_secenekleri):
+                await query.message.reply_text(f"❌ Sokak/işyeri/hane index'i geçersiz: {secenek_index + 1}")
+                return
+            
+            secilen_secenek = sokak_isyeri_hane_secenekleri[secenek_index]
+            print(f"Seçilen sokak/işyeri/hane: {secilen_secenek}")
+            
+            # Seçimi kaydet
+            user_secimleri[user_id][kategori] = secilen_secenek
+            
+            print(f"Sokak/işyeri/hane seçimi kaydedildi: {user_secimleri[user_id]}")
+            
+            # Anket tamamlandı
+            await complete_survey(query.message, user_id)
+            return
+        
+        # Diğer kategoriler için (cinsiyet, yas, ses)
         if user_id not in user_secimleri or "il" not in user_secimleri[user_id]:
             await query.message.reply_text("❌ Önce il seçimi yapmalısınız.")
             return

@@ -17,15 +17,27 @@
       "C2": 10,
       "DE": 10
     },
-    "sokak_isyeri_hane": {
-      "Sokak": 10,
-      "İşyeri": 10,
-      "Hane": 10
-    },
     "cadde": {
       "Merkez": 10,
       "Çevre": 10,
       "Kırsal": 10
+    },
+    "sokak_isyeri_hane": {
+      "Merkez": {
+        "Sokak": 10,
+        "İşyeri": 10,
+        "Hane": 10
+      },
+      "Çevre": {
+        "Sokak": 10,
+        "İşyeri": 10,
+        "Hane": 10
+      },
+      "Kırsal": {
+        "Sokak": 10,
+        "İşyeri": 10,
+        "Hane": 10
+      }
     }
   },
   "Gazimağusa": {
@@ -46,15 +58,27 @@
       "C2": 10,
       "DE": 10
     },
-    "sokak_isyeri_hane": {
-      "Sokak": 10,
-      "İşyeri": 10,
-      "Hane": 10
-    },
     "cadde": {
       "Merkez": 10,
       "Çevre": 10,
       "Kırsal": 10
+    },
+    "sokak_isyeri_hane": {
+      "Merkez": {
+        "Sokak": 10,
+        "İşyeri": 10,
+        "Hane": 10
+      },
+      "Çevre": {
+        "Sokak": 10,
+        "İşyeri": 10,
+        "Hane": 10
+      },
+      "Kırsal": {
+        "Sokak": 10,
+        "İşyeri": 10,
+        "Hane": 10
+      }
     }
   },
   "Girne": {
@@ -75,15 +99,48 @@
       "C2": 10,
       "DE": 10
     },
-    "sokak_isyeri_hane": {
-      "Sokak": 10,
-      "İşyeri": 10,
-      "Hane": 10
-    },
     "cadde": {
+      "Alsancak": 10,
       "Merkez": 10,
       "Çevre": 10,
       "Kırsal": 10
+    },
+    "sokak_isyeri_hane": {
+      "Alsancak_Karaoğlanoğlu Cd.": {
+        "Sokak": 3,
+        "İşyeri": 7,
+        "Hane": 5
+      },
+      "Alsancak_Atatürk Cd.": {
+        "Sokak": 10,
+        "İşyeri": 10,
+        "Hane": 10
+      },
+      "Alsancak_Cumhuriyet Cd.": {
+        "Sokak": 10,
+        "İşyeri": 10,
+        "Hane": 10
+      },
+      "Alsancak_Diğer": {
+        "Sokak": 10,
+        "İşyeri": 10,
+        "Hane": 10
+      },
+      "Merkez": {
+        "Sokak": 10,
+        "İşyeri": 10,
+        "Hane": 10
+      },
+      "Çevre": {
+        "Sokak": 10,
+        "İşyeri": 10,
+        "Hane": 10
+      },
+      "Kırsal": {
+        "Sokak": 10,
+        "İşyeri": 10,
+        "Hane": 10
+      }
     }
   },
   "Güzelyurt": {
@@ -104,15 +161,27 @@
       "C2": 10,
       "DE": 10
     },
-    "sokak_isyeri_hane": {
-      "Sokak": 10,
-      "İşyeri": 10,
-      "Hane": 10
-    },
     "cadde": {
       "Merkez": 10,
       "Çevre": 10,
       "Kırsal": 10
+    },
+    "sokak_isyeri_hane": {
+      "Merkez": {
+        "Sokak": 10,
+        "İşyeri": 10,
+        "Hane": 10
+      },
+      "Çevre": {
+        "Sokak": 10,
+        "İşyeri": 10,
+        "Hane": 10
+      },
+      "Kırsal": {
+        "Sokak": 10,
+        "İşyeri": 10,
+        "Hane": 10
+      }
     }
   },
   "İskele": {
@@ -133,15 +202,27 @@
       "C2": 10,
       "DE": 10
     },
-    "sokak_isyeri_hane": {
-      "Sokak": 10,
-      "İşyeri": 10,
-      "Hane": 10
-    },
     "cadde": {
       "Merkez": 10,
       "Çevre": 10,
       "Kırsal": 10
+    },
+    "sokak_isyeri_hane": {
+      "Merkez": {
+        "Sokak": 10,
+        "İşyeri": 10,
+        "Hane": 10
+      },
+      "Çevre": {
+        "Sokak": 10,
+        "İşyeri": 10,
+        "Hane": 10
+      },
+      "Kırsal": {
+        "Sokak": 10,
+        "İşyeri": 10,
+        "Hane": 10
+      }
     }
   }
 }
